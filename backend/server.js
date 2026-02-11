@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const { pool, testConnection } = require('./config/database');
+const authRoutes = require('./routes/authRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -46,13 +47,19 @@ app.get('/api/health/database', async (req, res) => {
   }
 });
 
+// API Routes
+app.use('/api/auth', authRoutes);
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({
     message: 'Welcome to ExpenseSnap API',
     version: '1.0.0',
     endpoints: {
-      health: '/api/health'
+      health: '/api/health',
+      database: '/api/health/database',
+      register: 'POST /api/auth/register',
+      login: 'POST /api/auth/login'
     }
   });
 });
