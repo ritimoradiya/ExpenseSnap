@@ -9,6 +9,7 @@ const authRoutes = require('./routes/authRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
+const receiptRoutes = require('./routes/receiptRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -34,6 +35,9 @@ app.set('io', io);
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+
+// Serve uploaded files
+app.use('/uploads', express.static('uploads'));
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -72,6 +76,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -108,6 +113,11 @@ app.get('/', (req, res) => {
         create: 'POST /api/budgets',
         update: 'PUT /api/budgets/:id',
         status: 'GET /api/budgets/status'
+      },
+      receipts: {
+        upload: 'POST /api/receipts/upload',
+        process: 'POST /api/receipts/process',
+        get: 'GET /api/receipts/:id'
       }
     }
   });
