@@ -5,6 +5,7 @@ const dotenv = require('dotenv');
 const { pool, testConnection } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
+const categoryRoutes = require('./routes/categoryRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -51,6 +52,7 @@ app.get('/api/health/database', async (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -66,7 +68,12 @@ app.get('/', (req, res) => {
       createTransaction: 'POST /api/transactions',
       updateTransaction: 'PUT /api/transactions/:id',
       deleteTransaction: 'DELETE /api/transactions/:id',
-      transactionStats: 'GET /api/transactions/stats'
+      transactionStats: 'GET /api/transactions/stats',
+      categories: 'GET /api/categories',
+      seedCategories: 'POST /api/categories/seed',
+      createCategory: 'POST /api/categories',
+      updateCategory: 'PUT /api/categories/:id',
+      deleteCategory: 'DELETE /api/categories/:id'
     }
   });
 });
