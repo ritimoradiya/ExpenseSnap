@@ -1,5 +1,5 @@
-
 const { pool } = require('../config/database');
+const { checkBudgetAndAlert } = require('../utils/budgetAlerts');
 
 // Get all transactions for a user
 const getTransactions = async (req, res) => {
@@ -136,6 +136,12 @@ const createTransaction = async (req, res) => {
        RETURNING *`,
       [userId, category_id, amount, merchant_name, description, transaction_date, receipt_image_url]
     );
+
+    // Check budget and send alert if needed
+    const io = req.app.get('io');
+    if (io && category_id) {
+      await checkBudgetAndAlert(userId, category_id, io);
+    }
     
     res.status(201).json({
       success: true,
@@ -207,6 +213,12 @@ const updateTransaction = async (req, res) => {
        RETURNING *`,
       [category_id, amount, merchant_name, description, transaction_date, receipt_image_url, id, userId]
     );
+
+    // Check budget and send alert if needed (in case amount or category changed)
+    const io = req.app.get('io');
+    if (io && result.rows[0].category_id) {
+      await checkBudgetAndAlert(userId, result.rows[0].category_id, io);
+    }
     
     res.json({
       success: true,

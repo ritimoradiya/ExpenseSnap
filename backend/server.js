@@ -2,6 +2,8 @@
 const express = require('express');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const http = require('http');
+const { Server } = require('socket.io');
 const { pool, testConnection } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
@@ -14,6 +16,20 @@ dotenv.config();
 // Initialize Express app
 const app = express();
 
+// Create HTTP server
+const server = http.createServer(app);
+
+// Initialize Socket.io with CORS
+const io = new Server(server, {
+  cors: {
+    origin: "*", // Allow all origins for development
+    methods: ["GET", "POST"]
+  }
+});
+
+// Make io accessible to routes
+app.set('io', io);
+
 // Middleware
 app.use(cors()); // Enable CORS for all routes
 app.use(express.json()); // Parse JSON bodies
@@ -25,7 +41,8 @@ app.get('/api/health', (req, res) => {
     status: 'success',
     message: 'ExpenseSnap API is running!',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV
+    environment: process.env.NODE_ENV,
+    websocket: 'enabled'
   });
 });
 
@@ -61,6 +78,7 @@ app.get('/', (req, res) => {
   res.json({
     message: 'Welcome to ExpenseSnap API',
     version: '1.0.0',
+    websocket: 'Socket.io enabled',
     endpoints: {
       health: '/api/health',
       database: '/api/health/database',
@@ -95,6 +113,23 @@ app.get('/', (req, res) => {
   });
 });
 
+// Socket.io connection handling
+io.on('connection', (socket) => {
+  console.log(`✅ Client connected: ${socket.id}`);
+
+  // Handle user authentication for socket
+  socket.on('authenticate', (userId) => {
+    socket.userId = userId;
+    socket.join(`user_${userId}`);
+    console.log(`👤 User ${userId} authenticated on socket ${socket.id}`);
+  });
+
+  // Handle disconnect
+  socket.on('disconnect', () => {
+    console.log(`❌ Client disconnected: ${socket.id}`);
+  });
+});
+
 // Start server
 const PORT = process.env.PORT || 5000;
 
@@ -103,11 +138,12 @@ const startServer = async () => {
     // Test database connection first
     await testConnection();
     
-    // Start Express server
-    app.listen(PORT, () => {
+    // Start HTTP server (not app.listen)
+    server.listen(PORT, () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
       console.log(`Health check: http://localhost:${PORT}/api/health`);
+      console.log(`🔌 WebSocket server enabled`);
     });
   } catch (error) {
     console.error('Failed to start server:', error.message);
