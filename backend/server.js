@@ -6,6 +6,7 @@ const { pool, testConnection } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
+const budgetRoutes = require('./routes/budgetRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -53,6 +54,7 @@ app.get('/api/health/database', async (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
+app.use('/api/budgets', budgetRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -62,18 +64,33 @@ app.get('/', (req, res) => {
     endpoints: {
       health: '/api/health',
       database: '/api/health/database',
-      register: 'POST /api/auth/register',
-      login: 'POST /api/auth/login',
-      transactions: 'GET /api/transactions',
-      createTransaction: 'POST /api/transactions',
-      updateTransaction: 'PUT /api/transactions/:id',
-      deleteTransaction: 'DELETE /api/transactions/:id',
-      transactionStats: 'GET /api/transactions/stats',
-      categories: 'GET /api/categories',
-      seedCategories: 'POST /api/categories/seed',
-      createCategory: 'POST /api/categories',
-      updateCategory: 'PUT /api/categories/:id',
-      deleteCategory: 'DELETE /api/categories/:id'
+      auth: {
+        register: 'POST /api/auth/register',
+        login: 'POST /api/auth/login',
+        me: 'GET /api/auth/me'
+      },
+      transactions: {
+        list: 'GET /api/transactions',
+        create: 'POST /api/transactions',
+        get: 'GET /api/transactions/:id',
+        update: 'PUT /api/transactions/:id',
+        delete: 'DELETE /api/transactions/:id',
+        stats: 'GET /api/transactions/stats'
+      },
+      categories: {
+        list: 'GET /api/categories',
+        seed: 'POST /api/categories/seed',
+        create: 'POST /api/categories',
+        get: 'GET /api/categories/:id',
+        update: 'PUT /api/categories/:id',
+        delete: 'DELETE /api/categories/:id'
+      },
+      budgets: {
+        list: 'GET /api/budgets',
+        create: 'POST /api/budgets',
+        update: 'PUT /api/budgets/:id',
+        status: 'GET /api/budgets/status'
+      }
     }
   });
 });
