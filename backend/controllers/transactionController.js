@@ -10,7 +10,7 @@ const getTransactions = async (req, res) => {
     const { category_id, start_date, end_date, limit = 50 } = req.query;
     
     let query = `
-      SELECT t.*, c.name as category_name, c.color as category_color
+      SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
       WHERE t.user_id = $1
@@ -65,7 +65,7 @@ const getTransactionById = async (req, res) => {
     const userId = req.user.id;
     
     const result = await pool.query(
-      `SELECT t.*, c.name as category_name, c.color as category_color
+      `SELECT t.*, c.name as category_name, c.color as category_color, c.icon as category_icon
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id
        WHERE t.id = $1 AND t.user_id = $2`,
@@ -103,7 +103,8 @@ const createTransaction = async (req, res) => {
       merchant_name,
       description,
       transaction_date,
-      receipt_image_url
+      receipt_image_url,
+      currency
     } = req.body;
     
     // Validation
@@ -131,10 +132,10 @@ const createTransaction = async (req, res) => {
     
     const result = await pool.query(
       `INSERT INTO transactions 
-       (user_id, category_id, amount, merchant_name, description, transaction_date, receipt_image_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       (user_id, category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [userId, category_id, amount, merchant_name, description, transaction_date, receipt_image_url]
+      [userId, category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency || 'USD']
     );
 
     // Check budget and send alert if needed
@@ -169,7 +170,8 @@ const updateTransaction = async (req, res) => {
       merchant_name,
       description,
       transaction_date,
-      receipt_image_url
+      receipt_image_url,
+      currency
     } = req.body;
     
     // Check if transaction exists and belongs to user
@@ -208,10 +210,11 @@ const updateTransaction = async (req, res) => {
            description = COALESCE($4, description),
            transaction_date = COALESCE($5, transaction_date),
            receipt_image_url = COALESCE($6, receipt_image_url),
+           currency = COALESCE($7, currency),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7 AND user_id = $8
+       WHERE id = $8 AND user_id = $9
        RETURNING *`,
-      [category_id, amount, merchant_name, description, transaction_date, receipt_image_url, id, userId]
+      [category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency, id, userId]
     );
 
     // Check budget and send alert if needed (in case amount or category changed)

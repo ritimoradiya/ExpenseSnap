@@ -2,7 +2,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Backend API URL - Update this to your backend URL
-const API_URL = 'http://localhost:5000/api';
+const API_URL = 'http://192.168.12.195:5000/api';
 
 // Create axios instance
 const api = axios.create({
@@ -74,14 +74,18 @@ export const budgetAPI = {
   getStatus: () => api.get('/budgets/status'),
 };
 
-// Receipt API
+// Receipt/OCR API
 export const receiptAPI = {
   upload: (formData) => api.post('/receipts/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
   }),
-  process: (data) => api.post('/receipts/process', data),
+  process: (formData) => api.post('/receipts/process', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  }),
   getById: (id) => api.get(`/receipts/${id}`),
 };
 

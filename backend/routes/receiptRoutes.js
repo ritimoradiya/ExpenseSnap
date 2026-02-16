@@ -10,8 +10,8 @@ router.use(authMiddleware);
 // Upload receipt image
 router.post('/upload', upload.single('receipt'), uploadReceipt);
 
-// Process receipt with OCR
-router.post('/process', processReceipt);
+// Process receipt with OCR - FIXED: Added multer middleware!
+router.post('/process', upload.single('image'), processReceipt);
 
 // Get receipt by ID
 router.get('/:id', getReceipt);
