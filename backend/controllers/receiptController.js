@@ -36,41 +36,40 @@ const uploadReceipt = async (req, res) => {
   }
 };
 
-// Process receipt with OCR - Enhanced with image preprocessing
+// Process receipt with OCR
 const processReceipt = async (req, res) => {
   try {
-    const { imagePath } = req.body;
-
-    if (!imagePath) {
+    if (!req.file) {
       return res.status(400).json({
         success: false,
-        message: 'Image path is required'
+        message: 'No image file uploaded'
       });
     }
 
-    // Get full path
-    const fullPath = path.join(__dirname, '..', imagePath);
+    const imagePath = req.file.path;
+    const fullPath = path.resolve(imagePath);
 
     console.log('Starting image preprocessing...');
+    console.log('Image path:', fullPath);
     
-    // Preprocess image for better OCR accuracy
+    // Preprocess image
     const processedPath = fullPath.replace(/\.(jpg|jpeg|png|gif)$/i, '-processed.png');
     
     await sharp(fullPath)
-      .grayscale()                          // Convert to grayscale
-      .normalize()                          // Enhance contrast
-      .sharpen()                            // Sharpen text edges
-      .resize(2000, 2000, {                 // Increase resolution
+      .grayscale()
+      .normalize()
+      .sharpen()
+      .resize(2000, 2000, {
         fit: 'inside',
         withoutEnlargement: false
       })
-      .threshold(128)                       // Convert to black & white
+      .threshold(128)
       .toFile(processedPath);
 
     console.log('Image preprocessed successfully!');
     console.log('Starting OCR processing...');
     
-    // Run Tesseract OCR on PREPROCESSED image
+    // Run Tesseract OCR
     const result = await Tesseract.recognize(processedPath, 'eng', {
       logger: info => console.log(info)
     });
@@ -82,11 +81,11 @@ const processReceipt = async (req, res) => {
     console.log('Extracted Text:', extractedText);
     console.log('Confidence:', confidence);
 
-    // Parse the extracted text with enhanced algorithm
+    // Parse the text
     const parsedData = parseReceiptText(extractedText);
     parsedData.ocrConfidence = confidence;
 
-    // Clean up processed image
+    // Clean up
     try {
       await fs.unlink(processedPath);
       console.log('Cleaned up processed image');
@@ -94,25 +93,85 @@ const processReceipt = async (req, res) => {
       console.log('Note: Could not clean up processed image');
     }
 
+    // IMPROVED: Smart category detection with fuzzy matching
+    let suggestedCategory = 'Other';
+    const merchantLower = (parsedData.merchant || '').toLowerCase();
+    const fullTextLower = extractedText.toLowerCase();
+
+    // Check both merchant name AND full text for better accuracy
+    if (merchantLower.includes('grocery') || 
+        merchantLower.includes('siddhi') ||
+        fullTextLower.includes('grocery') ||
+        merchantLower.includes('market') || 
+        merchantLower.includes('supermarket') ||
+        merchantLower.includes('walmart') ||
+        merchantLower.includes('target')) {
+      suggestedCategory = 'Grocery';
+    }
+    else if (merchantLower.includes('restaurant') || 
+             merchantLower.includes('cafe') || 
+             merchantLower.includes('coffee') ||
+             merchantLower.includes('starbucks') ||
+             merchantLower.includes('mcdonald')) {
+      suggestedCategory = 'Food & Dining';
+    }
+    else if (merchantLower.includes('gas') ||
+             merchantLower.includes('shell') ||
+             merchantLower.includes('chevron') ||
+             merchantLower.includes('uber') ||
+             merchantLower.includes('lyft')) {
+      suggestedCategory = 'Transportation';
+    }
+
+    console.log('Suggested Category:', suggestedCategory);
+
+    // IMPROVED: Smart currency detection - prioritize $ count
+    let detectedCurrency = 'USD';
+    const hasRupee = extractedText.includes('₹') || extractedText.includes('Rs') || /INR|rupee/i.test(extractedText);
+    const hasEuro = extractedText.includes('€') && /EUR|euro/i.test(extractedText);
+    const hasPound = extractedText.includes('£') && /GBP|pound/i.test(extractedText);
+    
+    // Count dollar signs (most reliable indicator for USD)
+    const dollarCount = (extractedText.match(/\$/g) || []).length;
+    
+    console.log('Dollar signs found:', dollarCount);
+    
+    if (hasRupee) {
+      detectedCurrency = 'INR';
+    } else if (hasEuro) {
+      detectedCurrency = 'EUR';
+    } else if (hasPound && dollarCount === 0) {
+      detectedCurrency = 'GBP';
+    } else if (dollarCount > 0) {
+      detectedCurrency = 'USD';
+    }
+
+    console.log('Detected Currency:', detectedCurrency);
+
+    // Return data
     res.status(200).json({
       success: true,
       message: 'OCR processing complete',
-      data: {
-        rawText: extractedText,
-        parsed: parsedData,
-        confidence: confidence
-      }
+      merchant_name: parsedData.merchant || '',
+      total: parsedData.amount || '',
+      date: parsedData.date || new Date().toISOString().split('T')[0],
+      category: suggestedCategory,
+      currency: detectedCurrency,
+      rawText: extractedText,
+      confidence: confidence,
+      parsed: parsedData
     });
   } catch (error) {
     console.error('Error processing receipt:', error);
     res.status(500).json({
       success: false,
-      message: 'Error processing receipt with OCR'
+      message: 'Error processing receipt with OCR',
+      error: error.message
     });
   }
 };
 
-// Enhanced parsing algorithm - handles paper receipts, digital receipts, and various formats
+// Enhanced parsing
 const parseReceiptText = (text) => {
   const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
   
@@ -121,38 +180,37 @@ const parseReceiptText = (text) => {
   let date = null;
   let confidence = 0;
 
-  // 1. MERCHANT: First meaningful line (usually store name)
+  // 1. MERCHANT: Look for lines with actual store names (avoid garbage)
   if (lines.length > 0) {
     for (const line of lines) {
-      // Skip common header words, look for actual merchant name
-      if (line.length > 3 && 
-          /[A-Za-z]/.test(line) && 
-          !/(receipt|original|customer|copy)/i.test(line)) {
-        merchant = line;
+      // Skip lines with random characters, look for clean merchant names
+      const cleanLine = line.replace(/[^\w\s]/g, ''); // Remove special chars
+      
+      if (cleanLine.length > 5 && 
+          cleanLine.length < 50 &&
+          /[A-Za-z]{3,}/.test(cleanLine) && 
+          !/(receipt|original|customer|copy|cashier|date|time)/i.test(cleanLine) &&
+          !/^\d/.test(cleanLine)) { // Don't start with number
+        merchant = cleanLine.trim();
         confidence += 33;
         break;
       }
     }
   }
 
-  // 2. AMOUNT: Multi-strategy keyword-based approach with priority ordering
+  // 2. AMOUNT: Multi-strategy approach with SKIP for CHANGE/CASH
   const reversedLines = [...lines].reverse();
   
-  // Priority 1: "TOTAL" keyword (highest priority - NOT subtotal)
+  // Priority 1: "TOTAL" keyword (highest priority)
   if (!amount) {
     for (const line of reversedLines) {
-      // Match "Total" but NOT "Subtotal" or "Items Subtotal"
       const totalPatterns = [
-        // Standard TOTAL pattern (excluding subtotal)
         /(?:^|[^a-z])total[:\s]+\$?(\d+\.?\d{0,2})(?:\s|$)/i,
-        // TOTAL with transaction ID: "ID # 283 TOTAL 34.43"
-        /(?:id|trans|transaction)[\s#]*\d+\s+total[:\s]*\$?(\d+\.?\d{0,2})/i,
-        // TOTAL at end of line
         /total[:\s]*\$?(\d+\.?\d{0,2})$/i,
       ];
       
-      // Skip if line contains "subtotal" or "items"
-      if (/subtotal|items\s+subtotal/i.test(line)) {
+      // SKIP these lines - they're not the total we want!
+      if (/subtotal|items\s+subtotal|change|cash/i.test(line)) {
         continue;
       }
       
@@ -163,6 +221,7 @@ const parseReceiptText = (text) => {
           if (potentialAmount > 0 && potentialAmount < 100000) {
             amount = potentialAmount;
             confidence += 34;
+            console.log('Found TOTAL amount:', amount, 'from line:', line);
             break;
           }
         }
@@ -171,65 +230,27 @@ const parseReceiptText = (text) => {
     }
   }
   
-  // Priority 2: "Grand Total" or "Amount Due" (high priority)
+  // Fallback: Find amounts in last 15 lines (but skip CHANGE/CASH)
   if (!amount) {
-    for (const line of reversedLines) {
-      const patterns = [
-        /(?:grand total|amount due|balance due|order total)[:\s]*\$?(\d+\.?\d{0,2})/i,
-        /(?:total amount|final total)[:\s]*\$?(\d+\.?\d{0,2})/i,
-      ];
-      
-      for (const pattern of patterns) {
-        const match = line.match(pattern);
-        if (match) {
-          const potentialAmount = parseFloat(match[1]);
-          if (potentialAmount > 0 && potentialAmount < 100000) {
-            amount = potentialAmount;
-            confidence += 32;
-            break;
-          }
-        }
-      }
-      if (amount) break;
-    }
-  }
-  
-  // Priority 3: "Subtotal" as fallback (lower priority)
-  if (!amount) {
-    for (const line of reversedLines) {
-      const subtotalPattern = /(?:subtotal|sub total)[:\s]*\$?(\d+\.?\d{0,2})/i;
-      const match = line.match(subtotalPattern);
-      
-      if (match) {
-        const potentialAmount = parseFloat(match[1]);
-        if (potentialAmount > 0 && potentialAmount < 100000) {
-          amount = potentialAmount;
-          confidence += 25; // Lower confidence for subtotal
-          break;
-        }
-      }
-    }
-  }
-  
-  // Priority 4: Dollar amount in last 10 lines (isolated amounts)
-  if (!amount) {
-    const lastLines = lines.slice(-10);
+    const lastLines = lines.slice(-15);
     for (const line of lastLines.reverse()) {
-      // Look for isolated dollar amounts (likely totals)
+      // Skip CHANGE and CASH lines
+      if (/change|cash/i.test(line)) {
+        continue;
+      }
+      
       const matches = [
-        line.match(/\$(\d+\.\d{2})$/),              // $XX.XX at end of line
-        line.match(/\$(\d+\.\d{2})\s*$/),           // $XX.XX with whitespace
-        line.match(/^[\s\$]*(\d+\.\d{2})\s*$/),     // Just the number
-        line.match(/[\s]+(\d+\.\d{2})$/),           // Spaces then amount at end
+        line.match(/\$(\d+\.\d{2})/),
+        line.match(/(\d+\.\d{2})/),
       ];
       
       for (const match of matches) {
         if (match) {
           const potentialAmount = parseFloat(match[1]);
-          // Must be reasonable amount
           if (potentialAmount > 1 && potentialAmount < 100000) {
             amount = potentialAmount;
             confidence += 15;
+            console.log('Found fallback amount:', amount, 'from line:', line);
             break;
           }
         }
@@ -237,64 +258,49 @@ const parseReceiptText = (text) => {
       if (amount) break;
     }
   }
-  
-  // Priority 5: Any dollar amount as last resort (very low confidence)
-  if (!amount) {
-    // Find all dollar amounts
-    const allAmounts = text.match(/\$?(\d+\.\d{2})/g);
-    if (allAmounts && allAmounts.length > 0) {
-      // Take one from the last few amounts found
-      const lastAmount = allAmounts[allAmounts.length - 1];
-      const potentialAmount = parseFloat(lastAmount.replace('$', ''));
-      if (potentialAmount > 0 && potentialAmount < 100000) {
-        amount = potentialAmount;
-        confidence += 10;
-      }
-    }
-  }
 
-  // 3. DATE: Multiple patterns with validation
+  // 3. DATE: Enhanced patterns
   const datePatterns = [
-    /(\d{2}\/\d{2}\/\d{4})/,                        // MM/DD/YYYY
-    /(\d{2}\/\d{2}\/\d{2})/,                        // MM/DD/YY
-    /(\d{2}-\d{2}-\d{2,4})/,                        // MM-DD-YY or MM-DD-YYYY
-    /(\d{1,2}\/\d{1,2}\/\d{2,4})/,                  // M/D/YY or M/D/YYYY
-    /Date[:\s]*(\d{2}\/\d{2}\/\d{2,4})/i,           // Date: MM/DD/YY
-    /(\d{4}-\d{2}-\d{2})/,                          // YYYY-MM-DD (ISO format)
+    /(\d{1,2}\/\d{1,2}\/\d{2,4})/g,
+    /(\d{1,2}-\d{1,2}-\d{2,4})/g,
+    /Date[:\s]*(\d{1,2}\/\d{1,2}\/\d{2,4})/gi,
   ];
-  
-  for (const line of lines) {
-    for (const pattern of datePatterns) {
-      const dateMatch = line.match(pattern);
-      if (dateMatch) {
-        const potentialDate = dateMatch[1];
+
+  for (const pattern of datePatterns) {
+    const matches = text.match(pattern);
+    if (matches) {
+      for (const match of matches) {
+        const cleanMatch = match.replace(/Date[:\s]*/i, '');
+        const parts = cleanMatch.split(/[\/\-]/);
         
-        // Validate date logic
-        const parts = potentialDate.split(/[\/\-]/);
-        let month, day, year;
+        let month = parseInt(parts[0]);
+        let day = parseInt(parts[1]);
+        let year = parseInt(parts[2]);
         
-        // Handle different date formats
-        if (parts[0].length === 4) {
-          // YYYY-MM-DD format
-          year = parseInt(parts[0]);
-          month = parseInt(parts[1]);
-          day = parseInt(parts[2]);
-        } else {
-          // MM/DD/YY or MM/DD/YYYY format
-          month = parseInt(parts[0]);
-          day = parseInt(parts[1]);
-          year = parseInt(parts[2]);
+        // Handle 2-digit year
+        if (year < 100) {
+          year = year > 50 ? 1900 + year : 2000 + year;
         }
         
-        // Basic validation: reasonable month and day
-        if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-          date = potentialDate;
+        // Validate
+        if (month >= 1 && month <= 12 && 
+            day >= 1 && day <= 31 && 
+            year >= 2020 && year <= 2030) {
+          // Format as YYYY-MM-DD
+          date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           confidence += 33;
+          console.log('Parsed date:', cleanMatch, '→', date);
           break;
         }
       }
     }
     if (date) break;
+  }
+
+  // Fallback to today
+  if (!date) {
+    const today = new Date();
+    date = today.toISOString().split('T')[0];
   }
 
   return {

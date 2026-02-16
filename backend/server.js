@@ -9,8 +9,10 @@ const authRoutes = require('./routes/authRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const budgetRoutes = require('./routes/budgetRoutes');
+const budgetPeriodRoutes = require('./routes/budgetPeriodRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const chatbotRoutes = require('./routes/chatbotRoutes');
 
 // Load environment variables
 dotenv.config();
@@ -77,8 +79,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/budgets', budgetRoutes);
+app.use('/api/budget-periods', budgetPeriodRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -116,6 +120,14 @@ app.get('/', (req, res) => {
         update: 'PUT /api/budgets/:id',
         status: 'GET /api/budgets/status'
       },
+      budgetPeriods: {
+        list: 'GET /api/budget-periods',
+        active: 'GET /api/budget-periods/active',
+        create: 'POST /api/budget-periods',
+        update: 'PUT /api/budget-periods/:id',
+        delete: 'DELETE /api/budget-periods/:id',
+        activate: 'PUT /api/budget-periods/:id/activate'
+      },
       receipts: {
         upload: 'POST /api/receipts/upload',
         process: 'POST /api/receipts/process',
@@ -126,6 +138,10 @@ app.get('/', (req, res) => {
         spendingOverTime: 'GET /api/analytics/spending-over-time',
         topMerchants: 'GET /api/analytics/top-merchants',
         monthlyComparison: 'GET /api/analytics/monthly-comparison'
+      },
+      chatbot: {
+        saveHistory: 'POST /api/chatbot/history',
+        getHistory: 'GET /api/chatbot/history'
       }
     }
   });
