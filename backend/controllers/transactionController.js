@@ -1,5 +1,5 @@
 const { pool } = require('../config/database');
-const { checkBudgetAndAlert } = require('../utils/budgetAlerts');
+const { checkBudgetAndAlert, checkAndEmitBudgetAlerts } = require('../utils/budgetAlerts');
 
 // Get all transactions for a user
 const getTransactions = async (req, res) => {
@@ -104,7 +104,8 @@ const createTransaction = async (req, res) => {
       description,
       transaction_date,
       receipt_image_url,
-      currency
+      currency,
+      type = 'expense'
     } = req.body;
     
     // Validation
@@ -132,16 +133,22 @@ const createTransaction = async (req, res) => {
     
     const result = await pool.query(
       `INSERT INTO transactions 
-       (user_id, category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       (user_id, category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [userId, category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency || 'USD']
+      [userId, category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency || 'USD', type]
     );
 
-    // Check budget and send alert if needed
+    // 🚨 NEW: Check BUDGET PERIOD and send real-time alert
     const io = req.app.get('io');
-    if (io && category_id) {
-      await checkBudgetAndAlert(userId, category_id, io);
+    if (io && type === 'expense') {
+      // Check budget period alert (new system)
+      await checkAndEmitBudgetAlerts(userId, io);
+      
+      // Also check category budget alert (old system for backward compatibility)
+      if (category_id) {
+        await checkBudgetAndAlert(userId, category_id, io);
+      }
     }
     
     res.status(201).json({
@@ -171,12 +178,13 @@ const updateTransaction = async (req, res) => {
       description,
       transaction_date,
       receipt_image_url,
-      currency
+      currency,
+      type
     } = req.body;
     
     // Check if transaction exists and belongs to user
     const checkResult = await pool.query(
-      'SELECT id FROM transactions WHERE id = $1 AND user_id = $2',
+      'SELECT id, type FROM transactions WHERE id = $1 AND user_id = $2',
       [id, userId]
     );
     
@@ -211,16 +219,23 @@ const updateTransaction = async (req, res) => {
            transaction_date = COALESCE($5, transaction_date),
            receipt_image_url = COALESCE($6, receipt_image_url),
            currency = COALESCE($7, currency),
+           type = COALESCE($8, type),
            updated_at = CURRENT_TIMESTAMP
-       WHERE id = $8 AND user_id = $9
+       WHERE id = $9 AND user_id = $10
        RETURNING *`,
-      [category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency, id, userId]
+      [category_id, amount, merchant_name, description, transaction_date, receipt_image_url, currency, type, id, userId]
     );
 
-    // Check budget and send alert if needed (in case amount or category changed)
+    // 🚨 Check budget and send alert if needed (amount or category may have changed)
     const io = req.app.get('io');
-    if (io && result.rows[0].category_id) {
-      await checkBudgetAndAlert(userId, result.rows[0].category_id, io);
+    if (io && result.rows[0].type === 'expense') {
+      // Check budget period alert
+      await checkAndEmitBudgetAlerts(userId, io);
+      
+      // Also check category budget alert
+      if (result.rows[0].category_id) {
+        await checkBudgetAndAlert(userId, result.rows[0].category_id, io);
+      }
     }
     
     res.json({
@@ -255,6 +270,16 @@ const deleteTransaction = async (req, res) => {
         message: 'Transaction not found'
       });
     }
+
+    // 🚨 Check budget after deletion (budget status may improve)
+    const io = req.app.get('io');
+    if (io && result.rows[0].type === 'expense') {
+      await checkAndEmitBudgetAlerts(userId, io);
+      
+      if (result.rows[0].category_id) {
+        await checkBudgetAndAlert(userId, result.rows[0].category_id, io);
+      }
+    }
     
     res.json({
       success: true,
@@ -280,8 +305,8 @@ const getTransactionStats = async (req, res) => {
     let query = `
       SELECT 
         COUNT(*) as total_transactions,
-        COALESCE(SUM(amount), 0) as total_spent,
-        COALESCE(AVG(amount), 0) as average_transaction
+        COALESCE(SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END), 0) as total_spent,
+        COALESCE(AVG(CASE WHEN type = 'expense' THEN amount ELSE NULL END), 0) as average_transaction
       FROM transactions
       WHERE user_id = $1
     `;

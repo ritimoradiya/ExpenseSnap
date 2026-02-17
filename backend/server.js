@@ -1,188 +1,102 @@
-// Import required packages
 const express = require('express');
 const cors = require('cors');
-const dotenv = require('dotenv');
 const http = require('http');
-const { Server } = require('socket.io');
-const { pool, testConnection } = require('./config/database');
-const authRoutes = require('./routes/authRoutes');
-const transactionRoutes = require('./routes/transactionRoutes');
-const categoryRoutes = require('./routes/categoryRoutes');
-const budgetRoutes = require('./routes/budgetRoutes');
-const budgetPeriodRoutes = require('./routes/budgetPeriodRoutes');
-const receiptRoutes = require('./routes/receiptRoutes');
-const analyticsRoutes = require('./routes/analyticsRoutes');
-const chatbotRoutes = require('./routes/chatbotRoutes');
+const socketIO = require('socket.io');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-// Load environment variables
-dotenv.config();
-
-// Initialize Express app
 const app = express();
-
-// Create HTTP server
 const server = http.createServer(app);
 
-// Initialize Socket.io with CORS
-const io = new Server(server, {
+// Socket.io setup with CORS
+const io = socketIO(server, {
   cors: {
-    origin: "*", // Allow all origins for development
-    methods: ["GET", "POST"]
+    origin: '*',
+    methods: ['GET', 'POST']
   }
 });
-
-// Make io accessible to routes
-app.set('io', io);
 
 // Middleware
-app.use(cors()); // Enable CORS for all routes
-app.use(express.json()); // Parse JSON bodies
-app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Serve uploaded files
-app.use('/uploads', express.static('uploads'));
+// Make io accessible in routes
+app.set('io', io);
 
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  res.status(200).json({
-    status: 'success',
-    message: 'ExpenseSnap API is running!',
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV,
-    websocket: 'enabled'
+// Routes
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/transactions', require('./routes/transactionRoutes'));
+app.use('/api/categories', require('./routes/categoryRoutes'));
+app.use('/api/budgets', require('./routes/budgetRoutes'));
+app.use('/api/budget-periods', require('./routes/budgetPeriodRoutes'));
+app.use('/api/receipts', require('./routes/receiptRoutes'));
+app.use('/api/analytics', require('./routes/analyticsRoutes'));
+app.use('/api/chatbot', require('./routes/chatbotRoutes'));
+
+// Health check
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'ExpenseSnap API is running',
+    socket: 'enabled'
   });
 });
 
-// Database health check endpoint
-app.get('/api/health/database', async (req, res) => {
-  try {
-    const result = await pool.query('SELECT NOW() as time, version() as version');
-    res.status(200).json({
-      status: 'success',
-      message: 'Database connection is healthy',
-      database: {
-        time: result.rows[0].time,
-        version: result.rows[0].version
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'error',
-      message: 'Database connection failed',
-      error: error.message
-    });
+// Socket.io authentication middleware
+io.use((socket, next) => {
+  const token = socket.handshake.auth.token;
+  
+  if (!token) {
+    return next(new Error('Authentication error: No token provided'));
   }
-});
 
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/transactions', transactionRoutes);
-app.use('/api/categories', categoryRoutes);
-app.use('/api/budgets', budgetRoutes);
-app.use('/api/budget-periods', budgetPeriodRoutes);
-app.use('/api/receipts', receiptRoutes);
-app.use('/api/analytics', analyticsRoutes);
-app.use('/api/chatbot', chatbotRoutes);
-
-// Root endpoint
-app.get('/', (req, res) => {
-  res.json({
-    message: 'Welcome to ExpenseSnap API',
-    version: '1.0.0',
-    websocket: 'Socket.io enabled',
-    endpoints: {
-      health: '/api/health',
-      database: '/api/health/database',
-      auth: {
-        register: 'POST /api/auth/register',
-        login: 'POST /api/auth/login',
-        me: 'GET /api/auth/me'
-      },
-      transactions: {
-        list: 'GET /api/transactions',
-        create: 'POST /api/transactions',
-        get: 'GET /api/transactions/:id',
-        update: 'PUT /api/transactions/:id',
-        delete: 'DELETE /api/transactions/:id',
-        stats: 'GET /api/transactions/stats'
-      },
-      categories: {
-        list: 'GET /api/categories',
-        seed: 'POST /api/categories/seed',
-        create: 'POST /api/categories',
-        get: 'GET /api/categories/:id',
-        update: 'PUT /api/categories/:id',
-        delete: 'DELETE /api/categories/:id'
-      },
-      budgets: {
-        list: 'GET /api/budgets',
-        create: 'POST /api/budgets',
-        update: 'PUT /api/budgets/:id',
-        status: 'GET /api/budgets/status'
-      },
-      budgetPeriods: {
-        list: 'GET /api/budget-periods',
-        active: 'GET /api/budget-periods/active',
-        create: 'POST /api/budget-periods',
-        update: 'PUT /api/budget-periods/:id',
-        delete: 'DELETE /api/budget-periods/:id',
-        activate: 'PUT /api/budget-periods/:id/activate'
-      },
-      receipts: {
-        upload: 'POST /api/receipts/upload',
-        process: 'POST /api/receipts/process',
-        get: 'GET /api/receipts/:id'
-      },
-      analytics: {
-        spendingByCategory: 'GET /api/analytics/spending-by-category',
-        spendingOverTime: 'GET /api/analytics/spending-over-time',
-        topMerchants: 'GET /api/analytics/top-merchants',
-        monthlyComparison: 'GET /api/analytics/monthly-comparison'
-      },
-      chatbot: {
-        saveHistory: 'POST /api/chatbot/history',
-        getHistory: 'GET /api/chatbot/history'
-      }
-    }
-  });
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.id;
+    socket.userEmail = decoded.email;
+    console.log(`✅ User ${decoded.email} authenticated for WebSocket`);
+    next();
+  } catch (error) {
+    console.error('Socket authentication failed:', error.message);
+    next(new Error('Authentication error: Invalid token'));
+  }
 });
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log(`✅ Client connected: ${socket.id}`);
+  console.log(`🔌 Client connected: ${socket.id} (User ID: ${socket.userId})`);
 
-  // Handle user authentication for socket
-  socket.on('authenticate', (userId) => {
-    socket.userId = userId;
-    socket.join(`user_${userId}`);
-    console.log(`👤 User ${userId} authenticated on socket ${socket.id}`);
-  });
+  // Join user to their personal room
+  socket.join(`user_${socket.userId}`);
+  console.log(`📍 User ${socket.userId} joined room: user_${socket.userId}`);
 
   // Handle disconnect
-  socket.on('disconnect', () => {
-    console.log(`❌ Client disconnected: ${socket.id}`);
+  socket.on('disconnect', (reason) => {
+    console.log(`❌ Client disconnected: ${socket.id} (Reason: ${reason})`);
+  });
+
+  // Test event (optional)
+  socket.on('ping', () => {
+    socket.emit('pong', { message: 'Server is alive!', timestamp: new Date() });
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(err.status || 500).json({
+    status: 'error',
+    message: err.message || 'Internal server error'
   });
 });
 
 // Start server
 const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🔌 WebSocket server enabled`);
+  console.log(`📡 Health check: http://localhost:${PORT}/health`);
+});
 
-const startServer = async () => {
-  try {
-    // Test database connection first
-    await testConnection();
-    
-    // Start HTTP server (not app.listen)
-    server.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
-      console.log(`Health check: http://localhost:${PORT}/api/health`);
-      console.log(`🔌 WebSocket server enabled`);
-    });
-  } catch (error) {
-    console.error('Failed to start server:', error.message);
-    process.exit(1);
-  }
-};
-
-startServer();
+module.exports = { app, io };
