@@ -17,6 +17,8 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import api from '../../src/services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import socketService from '../../services/socketService';
+import BudgetAlertBanner from '../../components/BudgetAlertBanner';
 
 const API_URL = 'http://192.168.12.195:5000/api';
 
@@ -28,6 +30,9 @@ export default function HomeScreen() {
   const [profileImage, setProfileImage] = useState(null);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
   const [showActionModal, setShowActionModal] = useState(false);
+  
+  // 🚨 Budget Alert State
+  const [budgetAlert, setBudgetAlert] = useState(null);
   
   // Active Budget Period
   const [activeBudgetPeriod, setActiveBudgetPeriod] = useState(null);
@@ -42,6 +47,14 @@ export default function HomeScreen() {
   useEffect(() => {
     fetchData();
     loadProfileImage();
+    
+    // Setup WebSocket listener for budget alerts
+    setupBudgetAlertListener();
+    
+    // Cleanup on unmount
+    return () => {
+      socketService.offBudgetAlert();
+    };
   }, []);
 
   useFocusEffect(
@@ -50,6 +63,24 @@ export default function HomeScreen() {
       loadProfileImage();
     }, [])
   );
+
+  // Setup Budget Alert Listener
+  const setupBudgetAlertListener = () => {
+    console.log('🔔 Setting up budget alert listener...');
+    
+    socketService.onBudgetAlert((alert) => {
+      console.log('📢 Budget alert received:', JSON.stringify(alert, null, 2));
+      console.log('🎯 Alert level:', alert.level);
+      console.log('💬 Alert message:', alert.message);
+      
+      setBudgetAlert(alert);
+      
+      // Also refresh data to show updated budget status
+      fetchActiveBudgetPeriod();
+    });
+    
+    console.log('✅ Budget alert listener setup complete');
+  };
 
   const fetchData = async () => {
     try {
@@ -239,6 +270,12 @@ export default function HomeScreen() {
 
   return (
     <View style={styles.container}>
+      {/* 🚨 Budget Alert Banner */}
+      <BudgetAlertBanner 
+        alert={budgetAlert} 
+        onDismiss={() => setBudgetAlert(null)} 
+      />
+
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         refreshControl={

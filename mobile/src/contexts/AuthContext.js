@@ -1,6 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authAPI } from '../services/api';
+import socketService from '../../services/socketService';
 
 const AuthContext = createContext({});
 
@@ -22,6 +23,10 @@ export const AuthProvider = ({ children }) => {
       if (storedToken && storedUser) {
         setToken(storedToken);
         setUser(JSON.parse(storedUser));
+        
+        // Connect socket if user was already logged in
+        await socketService.connect();
+        console.log('🔌 Socket connected on app start');
       }
     } catch (error) {
       console.error('Error loading user from storage:', error);
@@ -44,6 +49,10 @@ export const AuthProvider = ({ children }) => {
         // Save to storage
         await AsyncStorage.setItem('token', userToken);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
+        
+        // Connect WebSocket after successful login
+        await socketService.connect();
+        console.log('🔌 Socket connected after login');
         
         return { success: true, data: response.data };
       }
@@ -73,6 +82,10 @@ export const AuthProvider = ({ children }) => {
         await AsyncStorage.setItem('token', userToken);
         await AsyncStorage.setItem('user', JSON.stringify(userData));
         
+        // Connect WebSocket after successful registration
+        await socketService.connect();
+        console.log('🔌 Socket connected after registration');
+        
         return { success: true, data: response.data };
       }
       
@@ -88,6 +101,10 @@ export const AuthProvider = ({ children }) => {
 
   const logout = async () => {
     try {
+      // Disconnect WebSocket before logout
+      socketService.disconnect();
+      console.log('🔌 Socket disconnected on logout');
+      
       // Clear state
       setUser(null);
       setToken(null);
