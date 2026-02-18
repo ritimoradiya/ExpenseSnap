@@ -1,50 +1,152 @@
-# Welcome to your Expo app 👋
+# ExpenseSnap 💰
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+A full-stack mobile expense tracking application built with React Native and Node.js. ExpenseSnap helps users track expenses, manage budgets, and gain insights into their spending habits.
 
-## Get started
+---
 
-1. Install dependencies
+## 📱 Features
 
-   ```bash
-   npm install
-   ```
+- **Authentication** — Secure JWT-based login and registration
+- **Expense Tracking** — Add, edit, and delete transactions with categories
+- **Receipt Scanning** — OCR-powered receipt scanning using Tesseract.js
+- **Budget Periods** — Create custom date-range budgets and track spending
+- **Analytics Dashboard** — Visual spending breakdowns with category insights
+- **AI Chatbot** — Natural language queries for spending data (9 query patterns)
+- **Real-time Alerts** — WebSocket-powered budget threshold notifications
+- **Profile Management** — Edit profile, change password, share app
 
-2. Start the app
+---
 
-   ```bash
-   npx expo start
-   ```
+## 🛠 Tech Stack
 
-In the output, you'll find options to open the app in a
+### Mobile (Frontend)
+| Technology | Usage |
+|---|---|
+| React Native + Expo | Mobile app framework |
+| Expo Router | File-based navigation |
+| Axios | API communication |
+| Socket.io Client | Real-time WebSocket |
+| AsyncStorage | Local data persistence |
+| Expo Image Picker | Profile photo selection |
+| React Native Reanimated | Animations |
+| Expo Linear Gradient | UI gradients |
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### Backend
+| Technology | Usage |
+|---|---|
+| Node.js + Express | REST API server |
+| PostgreSQL | Relational database |
+| JWT | Authentication |
+| Tesseract.js | OCR receipt processing |
+| Sharp | Image preprocessing |
+| Socket.io | WebSocket server |
+| dotenv | Environment config |
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+---
 
-## Get a fresh project
+## 🚀 Getting Started
 
-When you're ready, run:
+### Prerequisites
+- Node.js v18+
+- PostgreSQL
+- Expo Go app (iOS/Android)
 
+### 1. Clone the repository
 ```bash
-npm run reset-project
+git clone https://github.com/ritimoradiya/ExpenseSnap.git
+cd ExpenseSnap
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Setup Backend
+```bash
+cd backend
+npm install
+```
 
-## Learn more
+Create a `.env` file in the `backend` directory:
+```env
+PORT=5000
+DATABASE_URL=postgresql://username:password@localhost:5432/expensesnap
+JWT_SECRET=your_jwt_secret
+JWT_EXPIRES_IN=7d
+```
 
-To learn more about developing your project with Expo, look at the following resources:
+Start the backend server:
+```bash
+node server.js
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 3. Setup Mobile
+```bash
+cd mobile
+npm install
+```
 
-## Join the community
+Update the API URL in `src/services/api.js`:
+```javascript
+const API_URL = 'http://YOUR_IP_ADDRESS:5000/api';
+```
 
-Join our community of developers creating universal apps.
+Start the mobile app:
+```bash
+npx expo start
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+Scan the QR code with Expo Go on your phone.
+
+---
+
+## 📁 Project Structure
+
+```
+ExpenseSnap/
+├── backend/
+│   ├── controllers/        # Route handlers
+│   ├── middleware/         # Auth middleware
+│   ├── routes/             # API routes
+│   ├── config/             # Database config
+│   └── server.js           # Entry point
+│
+└── mobile/
+    ├── app/
+    │   ├── (auth)/         # Login & Register screens
+    │   ├── (tabs)/         # Main app tabs
+    │   └── _layout.tsx     # Root layout
+    ├── src/
+    │   ├── contexts/       # Auth context
+    │   └── services/       # API service
+    ├── components/         # Reusable components
+    └── services/           # Socket service
+```
+
+---
+
+## 🔌 API Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| POST | `/api/auth/register` | Register new user |
+| POST | `/api/auth/login` | Login user |
+| GET | `/api/transactions` | Get all transactions |
+| POST | `/api/transactions` | Create transaction |
+| PUT | `/api/transactions/:id` | Update transaction |
+| DELETE | `/api/transactions/:id` | Delete transaction |
+| GET | `/api/categories` | Get all categories |
+| POST | `/api/budget-periods` | Create budget period |
+| GET | `/api/budget-periods/active` | Get active budget |
+| POST | `/api/receipts/process` | Process receipt OCR |
+| GET | `/api/analytics/spending-by-category` | Category analytics |
+| GET | `/api/chatbot/query` | AI chatbot query |
+
+---
+
+## 👤 Developer
+
+**Riti Moradiya**
+- GitHub: [@ritimoradiya](https://github.com/ritimoradiya)
+
+---
+
+## 📄 License
+
+This project is for educational and portfolio purposes.
