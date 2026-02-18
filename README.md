@@ -174,8 +174,3 @@ PostgreSQL database with 8 tables:
 **Riti Moradiya**
 - GitHub: [@ritimoradiya](https://github.com/ritimoradiya)
 
----
-
-## 📄 License
-
-This project is for educational and portfolio purposes.
