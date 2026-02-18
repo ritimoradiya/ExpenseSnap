@@ -1,10 +1,12 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { EventEmitter } from 'eventemitter3';
 
-// Backend API URL - Update this to your backend URL
+// Global event emitter for auth events
+export const authEvents = new EventEmitter();
+
 const API_URL = 'http://192.168.12.195:5000/api';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_URL,
   headers: {
@@ -21,9 +23,7 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
 // Response interceptor to handle errors
@@ -31,9 +31,10 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
+      // Emit logout event — AuthContext will listen and redirect
+      authEvents.emit('unauthorized');
     }
     return Promise.reject(error);
   }
@@ -77,14 +78,10 @@ export const budgetAPI = {
 // Receipt/OCR API
 export const receiptAPI = {
   upload: (formData) => api.post('/receipts/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   process: (formData) => api.post('/receipts/process', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    headers: { 'Content-Type': 'multipart/form-data' },
   }),
   getById: (id) => api.get(`/receipts/${id}`),
 };

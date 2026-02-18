@@ -27,23 +27,18 @@ export default function RegisterScreen() {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
-
     if (password !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
     }
-
     if (password.length < 6) {
       Alert.alert('Error', 'Password must be at least 6 characters');
       return;
     }
-
     setLoading(true);
     try {
       const result = await register(name, email, password);
-      
       if (result.success) {
-        Alert.alert('Success', 'Registration successful!');
         router.replace('/(tabs)');
       } else {
         Alert.alert('Error', result.message || 'Registration failed');
@@ -56,57 +51,66 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.inner}
+      >
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Sign up to get started</Text>
         </View>
 
-        <View style={styles.form}>
+        <View style={styles.card}>
           <TextInput
             style={styles.input}
             placeholder="Full Name"
+            placeholderTextColor="rgba(255, 255, 255, 0.4)"
             value={name}
             onChangeText={setName}
             editable={!loading}
+            color="#FFFFFF"
           />
 
           <TextInput
             style={styles.input}
             placeholder="Email"
+            placeholderTextColor="rgba(255, 255, 255, 0.4)"
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
             keyboardType="email-address"
             editable={!loading}
+            color="#FFFFFF"
           />
 
           <TextInput
             style={styles.input}
             placeholder="Password"
+            placeholderTextColor="rgba(255, 255, 255, 0.4)"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
             editable={!loading}
+            color="#FFFFFF"
           />
 
           <TextInput
             style={styles.input}
             placeholder="Confirm Password"
+            placeholderTextColor="rgba(255, 255, 255, 0.4)"
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
             editable={!loading}
+            color="#FFFFFF"
           />
 
           <TouchableOpacity
             style={[styles.button, loading && styles.buttonDisabled]}
             onPress={handleRegister}
             disabled={loading}
+            activeOpacity={0.85}
           >
             {loading ? (
               <ActivityIndicator color="#fff" />
@@ -117,83 +121,91 @@ export default function RegisterScreen() {
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <TouchableOpacity
-              onPress={() => router.push('/(auth)/login')}
-              disabled={loading}
-            >
+            <TouchableOpacity onPress={() => router.push('/(auth)/login')} disabled={loading}>
               <Text style={styles.link}>Login</Text>
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: 'rgba(177, 201, 239, 0.35)',
   },
-  content: {
+  inner: {
     flex: 1,
     justifyContent: 'center',
-    padding: 20,
+    padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 36,
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#fff',
     marginBottom: 8,
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
+    color: 'rgba(255,255,255,0.8)',
   },
-  form: {
-    width: '100%',
+  card: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 24,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 13,
+    borderRadius: 12,
     fontSize: 16,
-    marginBottom: 16,
+    marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: 'rgba(255,255,255,0.15)',
   },
   button: {
-    backgroundColor: '#3B82F6',
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: '#4A7FC0',
+    paddingVertical: 15,
+    borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 5,
   },
   buttonDisabled: {
-    backgroundColor: '#93C5FD',
+    backgroundColor: 'rgba(74, 127, 192, 0.5)',
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.3,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 20,
   },
   footerText: {
     fontSize: 14,
-    color: '#666',
+    color: 'rgba(255,255,255,0.85)',
   },
   link: {
     fontSize: 14,
-    color: '#3B82F6',
-    fontWeight: '600',
+    color: '#fff',
+    fontWeight: '700',
   },
 });

@@ -9,45 +9,28 @@ import { useRouter, useSegments } from 'expo-router';
 import socketService from '../services/socketService';
 import BudgetAlertBanner from '../components/BudgetAlertBanner';
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
+export const unstable_settings = { anchor: '(tabs)' };
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
   const segments = useSegments();
   const router = useRouter();
-  
-  // 🚨 Global Budget Alert State
   const [budgetAlert, setBudgetAlert] = useState(null);
 
   useEffect(() => {
     if (loading) return;
-
     const inAuthGroup = segments[0] === '(auth)';
-
     if (!user && !inAuthGroup) {
-      router.replace('/login');
+      router.replace('/(auth)/login');
     } else if (user && inAuthGroup) {
       router.replace('/(tabs)');
     }
   }, [user, loading, segments]);
 
-  // 🚨 Setup Global Budget Alert Listener
   useEffect(() => {
     if (user) {
-      console.log('🔔 Setting up GLOBAL budget alert listener...');
-      
-      socketService.onBudgetAlert((alert) => {
-        console.log('📢 GLOBAL Budget alert received:', JSON.stringify(alert, null, 2));
-        setBudgetAlert(alert);
-      });
-
-      console.log('✅ GLOBAL Budget alert listener setup complete');
-
-      return () => {
-        socketService.offBudgetAlert();
-      };
+      socketService.onBudgetAlert((alert) => setBudgetAlert(alert));
+      return () => socketService.offBudgetAlert();
     }
   }, [user]);
 
@@ -55,12 +38,7 @@ function RootLayoutNav() {
 
   return (
     <>
-      {/* 🚨 GLOBAL Budget Alert Banner */}
-      <BudgetAlertBanner 
-        alert={budgetAlert} 
-        onDismiss={() => setBudgetAlert(null)} 
-      />
-
+      <BudgetAlertBanner alert={budgetAlert} onDismiss={() => setBudgetAlert(null)} />
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
