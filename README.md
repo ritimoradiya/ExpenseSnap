@@ -100,23 +100,28 @@ Scan the QR code with Expo Go on your phone.
 
 ```
 ExpenseSnap/
+├── README.md
+├── database-setup.md           # Database setup reference
 ├── backend/
-│   ├── controllers/        # Route handlers
-│   ├── middleware/         # Auth middleware
-│   ├── routes/             # API routes
-│   ├── config/             # Database config
-│   └── server.js           # Entry point
+│   ├── controllers/            # Route handlers
+│   ├── middleware/             # Auth middleware
+│   ├── migrations/             # Database migrations
+│   ├── routes/                 # API routes
+│   ├── config/                 # Database config
+│   ├── utils/                  # Helper functions
+│   └── server.js               # Entry point
 │
 └── mobile/
     ├── app/
-    │   ├── (auth)/         # Login & Register screens
-    │   ├── (tabs)/         # Main app tabs
-    │   └── _layout.tsx     # Root layout
+    │   ├── (auth)/             # Login & Register screens
+    │   ├── (tabs)/             # Main app tabs
+    │   └── _layout.tsx         # Root layout
     ├── src/
-    │   ├── contexts/       # Auth context
-    │   └── services/       # API service
-    ├── components/         # Reusable components
-    └── services/           # Socket service
+    │   ├── contexts/           # Auth context
+    │   ├── services/           # API service
+    │   └── utils/              # Helper functions
+    ├── components/             # Reusable components
+    └── services/               # Socket service
 ```
 
 ---
@@ -133,10 +138,34 @@ ExpenseSnap/
 | DELETE | `/api/transactions/:id` | Delete transaction |
 | GET | `/api/categories` | Get all categories |
 | POST | `/api/budget-periods` | Create budget period |
+| PUT | `/api/budget-periods/:id/activate` | Set active budget period |
+| DELETE | `/api/budget-periods/:id` | Delete budget period |
 | GET | `/api/budget-periods/active` | Get active budget |
 | POST | `/api/receipts/process` | Process receipt OCR |
 | GET | `/api/analytics/spending-by-category` | Category analytics |
-| GET | `/api/chatbot/query` | AI chatbot query |
+| GET | `/api/analytics/spending-over-time` | Spending over time |
+| GET | `/api/analytics/monthly-comparison` | Monthly comparison |
+| POST | `/api/chatbot/query` | AI chatbot query |
+| GET | `/api/chatbot/history` | Chatbot query history |
+
+---
+
+## 🗄 Database Schema
+
+PostgreSQL database with 8 tables:
+
+| Table | Description |
+|---|---|
+| `users` | User accounts and authentication |
+| `categories` | Expense categories (Food, Transport, etc.) |
+| `transactions` | All expense records |
+| `budgets` | Monthly budget limits per category |
+| `receipts` | Receipt images and OCR data |
+| `budget_periods` | Custom date-range budget periods |
+| `chatbot_queries` | Natural language query history |
+| `shared_accounts` | Roommate expense splitting (future) |
+
+> See `database-setup.md` for full database setup instructions.
 
 ---
 
