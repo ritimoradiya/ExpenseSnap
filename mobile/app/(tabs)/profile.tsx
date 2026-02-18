@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
   Image, Alert, Modal, TextInput, ActivityIndicator, Share,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
@@ -244,8 +245,9 @@ export default function ProfileScreen() {
 
       {/* Edit Profile Modal */}
       <Modal visible={showEditModal} transparent animationType="slide" onRequestClose={() => setShowEditModal(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <ScrollView style={styles.modalCard} contentContainerStyle={{ paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>Edit Profile</Text>
               <TouchableOpacity onPress={() => setShowEditModal(false)}>
@@ -263,8 +265,9 @@ export default function ProfileScreen() {
             <TouchableOpacity style={[styles.saveButton, editLoading && { opacity: 0.6 }]} onPress={handleSaveProfile} disabled={editLoading}>
               {editLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
             </TouchableOpacity>
-          </View>
+          </ScrollView>
         </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Data & Storage Modal */}
@@ -372,7 +375,7 @@ const styles = StyleSheet.create({
   deleteButton: { padding: 16, borderRadius: 12, alignItems: 'center', marginTop: 12, borderWidth: 1, borderColor: 'rgba(239,68,68,0.5)' },
   deleteText: { fontSize: 16, fontWeight: '600', color: '#EF4444' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalCard: { backgroundColor: '#2D3F55', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40 },
+  modalCard: { backgroundColor: '#2D3F55', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, maxHeight: '90%' },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
   modalTitle: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   inputLabel: { fontSize: 13, color: '#B1C9EF', marginBottom: 6, marginTop: 12 },

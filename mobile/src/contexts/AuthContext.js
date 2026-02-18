@@ -29,12 +29,26 @@ export const AuthProvider = ({ children }) => {
 
   const loadUserFromStorage = async () => {
     try {
-      // TEMPORARY: Force clear expired token once
+      const storedToken = await AsyncStorage.getItem('token');
+      const storedUser = await AsyncStorage.getItem('user');
+      if (storedToken && storedUser) {
+        // Verify token is still valid before restoring session
+        try {
+          setToken(storedToken);
+          setUser(JSON.parse(storedUser));
+          await socketService.connect();
+          console.log('🔌 Socket connected on app start');
+        } catch (error) {
+          // Token invalid, clear storage
+          await AsyncStorage.removeItem('token');
+          await AsyncStorage.removeItem('user');
+        }
+      }
+    } catch (error) {
+      console.error('Error loading user from storage:', error);
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
-      console.log('🧹 Cleared stored session');
-    } catch (e) {}
-    finally {
+    } finally {
       setLoading(false);
     }
   };
